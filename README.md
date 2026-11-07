@@ -4,4 +4,6 @@
 
 Щетенський Олександр
 
-PHP
+Основні рекомендації написання коду для PHP.
+
+Методи рефакторингу коду: Replace Array with Object, Convert Procedural Design to Objects, Replace Error Code with Exception.
