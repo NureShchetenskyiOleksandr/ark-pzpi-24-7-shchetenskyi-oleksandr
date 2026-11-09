@@ -1,0 +1,484 @@
+Харківський національний університет радіоелектроніки
+Факультет комп’ютерних наук
+Кафедра програмної інженерії
+
+
+
+
+
+ЗВІТ
+до практичного завдання № 2
+з дисципліни «Аналіз та рефакторинг коду»
+на тему: «Методи рефакторингу коду програмного забезпечення»
+
+
+
+Виконав
+ст. гр. ПЗПІ-24-7
+Щетенський О. В.
+
+Перевірив
+ст. викладач кафедри ПІ
+Сокорчук І. П.
+
+
+
+
+
+
+
+Харків 2026
+1 ІСТОРІЯ ЗМІН
+№
+Дата
+Версія звіту
+Опис змін та виправлень
+1
+08.11.2026
+0.1
+Створено розділ «Завдання»
+2
+08.11.2026
+0.1
+Створено розділи «Мета роботи» та «Опис виконаної роботи»
+3
+09.11.2026
+0.2
+Додано висновки, джерела та додатки А, Б, В
+
+2 ЗАВДАННЯ
+Обрати три методи рефакторинґу коду з книги М. Фаулера «Refactoring: Improving the Design of Existing Code». Навести приклади коду, що потребує покращення, і продемонструвати застосування обраних методів. Для кожного методу подати опис проблеми, код до і після рефакторингу та пояснення переваг. Підготувати презентацію (вступ, три приклади, висновки) і представити її на практичному занятті. Обрані методи: Replace Array with Object, Convert Procedural Design to Objects, Replace Error Code with Exception. Мова програмування – PHP.
+3 МЕТА РОБОТИ
+Опанувати основні методи рефакторингу коду, навчитися ідентифікувати проблеми в програмному коді (масиви замість об’єктів, процедурний дизайн, коди помилок) та застосовувати відповідні методи для підвищення читабельності, підтримуваності й надійності коду.
+4 ОПИС ВИКОНАНОЇ РОБОТИ
+4.1 Вибір методів рефакторингу
+З каталогу методів, описаних у книзі М. Фаулера [1], обрано три методи: Replace Array with Object (заміна масиву об’єктом), Convert Procedural Design to Objects (перетворення процедурного дизайну на об’єктний) та Replace Error Code with Exception (заміна коду помилки виключенням). Як навчальну основу використано невелику програму обліку оцінок студентів мовою PHP 8. Початковий код містить типові недоліки, а після рефакторингу поведінка програми не змінюється (див. розділ 4.5).
+4.2 Метод 1: Replace Array with Object
+Опис проблеми. У початковому коді студент подається масивом із позиційними елементами: [0] – ПІБ, [1] – група, [2] – бал (додаток В.1). Індекси не мають змісту, типи значень не контролюються, а функції studentLabel(), studentGrade() та isPassed() змушені знати внутрішню будову масиву. Це знижує читабельність, ускладнює супровід і підвищує ризик помилок, наприклад переплутаного порядку елементів. Метод оптимальний, бо масив фактично виконує роль окремої сутності з власною поведінкою.
+Пояснення методу. Метод полягає в створенні класу, перетворенні елементів масиву на його поля та перенесенні логіки в методи класу [1]. У додатку В.2 створено клас Student з readonly-властивостями name, group, score, а функції перетворено на методи label(), grade() та isPassed(). Порогове значення 60 винесено в константу PASS_SCORE, а ланцюжок умов замінено виразом match.
+Переваги. Звернення $student->score замість $student[2] зрозуміле без коментарів; типи властивостей контролюються за strict_types; дані та поведінка зібрані в одному місці; зміна логіки (наприклад, прохідного балу) виконується в одному класі; IDE та статичні аналізатори підказують і перевіряють код.
+4.3 Метод 2: Convert Procedural Design to Objects
+Опис проблеми. Програму обліку оцінок побудовано процедурно (додаток В.3): дані зберігаються в масиві, а функції addStudent(), averageScore(), bestStudent() і printReport() приймають цей масив і напряму працюють з його ключами. Зміна структури даних вимагає правок у кожній функції, немає інкапсуляції, а printReport() змішує обчислення та виведення, тому її важко тестувати. Метод підходить, бо дані та операції над ними логічно становлять єдину сутність.
+Пояснення методу. Метод (один із «великих» рефакторингів [1]) полягає в перетворенні процедурної структури на набір об’єктів: записи даних стають класами, а процедури – їхніми методами; подання відокремлюється від предметної логіки. У додатку В.4 рядок масиву став класом Student, а масив – класом Gradebook з методами add(), students(), averageScore() і best(). Функція printReport() перетворилась на GradebookReport::render(), яка повертає рядок замість прямого виводу.
+Переваги. Інкапсуляція: структуру даних можна змінити в одному класі; кожен клас має одну відповідальність; render() повертає рядок, тому звіт легко тестувати; нові формати звіту (HTML, CSV) додаються окремими класами без змін Gradebook.
+4.4 Метод 3: Replace Error Code with Exception
+Опис проблеми. Функція addStudent() повертає цілий код: 0 – успіх, 1 – порожнє ім’я, 2 – некоректний бал, 3 – дублікат (додаток В.5). Викликаючий код мусить знати ці «магічні» константи й перевіряти результат ланцюжком if/elseif; якщо перевірку пропустити, помилка залишиться непоміченою. Код помилки не несе контексту, наприклад, яке саме значення некоректне. Для виняткових ситуацій у PHP природніше застосовувати виключення [3].
+Пояснення методу. Метод полягає в тому, щоб замість повернення коду помилки викидати виключення [1]. У додатку В.6 створено базовий клас StudentRegistrationException і спеціалізовані EmptyNameException, InvalidScoreException, DuplicateStudentException. Метод StudentRegistry::add() має тип void і викидає виключення, а виклик обгорнуто в try/catch.
+Переваги. Помилку неможливо непомітно проігнорувати; виключення несе повідомлення та дані (score, name); нормальний потік коду відокремлено від обробки помилок; ієрархія класів дозволяє перехоплювати як конкретні помилки, так і всі помилки реєстрації разом; зникають «магічні» константи.
+4.5 Перевірка результату
+Кожну пару програм «до» і «після» запущено інтерпретатором PHP (код розрахований на PHP 8.1 і новіші, перевірено на PHP 8.5). Вивід програм у кожній парі збігається, отже рефакторинг не змінив поведінку. Наприклад, для методу 3 обидві версії виводять:
+Додано: Іван Петренко
+Помилка: порожнє ім'я
+Помилка: некоректний бал (120)
+Помилка: дублікат (Іван Петренко)
+5 ВИСНОВКИ
+У ході роботи було розглянуто три методи рефакторингу з книги М. Фаулера: Replace Array with Object, Convert Procedural Design to Objects та Replace Error Code with Exception.
+Для кожного методу описано проблему, наведено код до і після рефакторингу та пояснено переваги.
+Отримано навички виявлення проблем у коді (позиційні масиви, процедурний дизайн, коди помилок) та їх усунення засобами сучасного PHP 8.
+Перевірено, що після рефакторингу поведінка програм не змінилась, а читабельність, інкапсуляція та надійність обробки помилок покращились.
+Підготовлено презентацію з 9 слайдів та відеозапис доповіді.
+6 ВИКОРИСТАНІ ДЖЕРЕЛА
+1. Fowler M., Beck K., Brant J., Opdyke W., Roberts D. Refactoring: Improving the Design of Existing Code. Reading, MA : Addison-Wesley, 1999. 431 p.
+2. Fowler M. Refactoring: Improving the Design of Existing Code. 2nd ed. Boston : Addison-Wesley, 2018. 448 p.
+3. Exceptions [Електронний ресурс] // PHP Manual / The PHP Group. – URL: https://www.php.net/manual/en/language.exceptions.php (дата звернення: 08.11.2026).
+4. Classes and Objects [Електронний ресурс] // PHP Manual / The PHP Group. – Режим доступу: https://www.php.net/manual/en/language.oop5.php (дата звернення: 08.11.2026).
+5. PSR-12: Extended Coding Style [Електронний ресурс] / PHP Framework Interop Group. – URL: https://www.php-fig.org/psr/psr-12/  (дата звернення: 08.11.2026).
+6. Martin R. C. Clean Code: A Handbook of Agile Software Craftsmanship. Upper Saddle River : Prentice Hall, 2008. 464 p.
+ДОДАТОК А
+Відеозапис
+Відеозапис доповіді: https://youtu.be/m1tYTQMfI4A
+Хронологічний опис відеозапису:
+00:00 – Вступ, тема доповіді (слайд 1)
+00:19 – Обрані методи рефакторингу (слайд 2)
+01:08 – Приклад 1: Replace Array with Object — проблема та код до (слайд 3)
+02:27 – Приклад 1: код після та переваги (слайд 4)
+04:00 – Приклад 2: Convert Procedural Design to Objects — проблема та код до (слайд 5)
+05:11 – Приклад 2: код після та переваги (слайд 6)
+06:36 – Приклад 3: Replace Error Code with Exception — проблема та код до (слайд 7)
+08:09 – Приклад 3: код після та переваги (слайд 8)
+09:23 – Висновки (слайд 9)
+ДОДАТОК Б
+Слайди презентації
+
+Рисунок Б.1 – Титульний слайд
+
+Рисунок Б.2 – Обрані методи рефакторингу
+
+
+Рисунок Б.3 – Приклад 1: Replace Array with Object – до
+
+Рисунок Б.4 – Приклад 1: Replace Array with Object – після
+
+
+Рисунок Б.5 – Приклад 2: Convert Procedural Design to Objects – до
+
+Рисунок Б.6 – Приклад 2: Convert Procedural Design to Objects – після
+
+
+Рисунок Б.7 –- Приклад 3: Replace Error Code with Exception –- до
+
+Рисунок Б.8 –- Приклад 3: Replace Error Code with Exception – після
+
+
+Рисунок Б.9 – Висновки
+ДОДАТОК В
+Програмний код
+В.1 Метод 1 (Replace Array with Object): код до рефакторингу
+GitHub репозиторій: https://github.com/NureShchetenskyiOleksandr/ark-pzpi-24-7-shchetenskyi-oleksandr/blob/main/Pract2/pzpi-24-7-shchetenskyi-oleksandr-pract2/example-1-replace-array-with-object-before.php
+ 1  <?php
+ 2
+ 3  declare(strict_types=1);
+ 4
+ 5  namespace App\Refactoring;
+ 6
+ 7  /**
+ 8   * Студент подається масивом із позиційними індексами:
+ 9   * [0] — ПІБ, [1] — група, [2] — бал.
+10   */
+11  function studentLabel(array $student): string
+12  {
+13      return $student[0] . ' (' . $student[1] . ')';
+14  }
+15
+16  function studentGrade(array $student): string
+17  {
+18      if ($student[2] >= 90) {
+19          return 'A';
+20      }
+21      if ($student[2] >= 75) {
+22          return 'B';
+23      }
+24      if ($student[2] >= 60) {
+25          return 'C';
+26      }
+27
+28      return 'F';
+29  }
+30
+31  function isPassed(array $student): bool
+32  {
+33      return $student[2] >= 60;
+34  }
+35
+36  // Демонстрація
+37  $students = [
+38      ['Іван Петренко', 'ПЗПІ-22-1', 87],
+39      ['Олена Коваль', 'ПЗПІ-22-1', 54],
+40      ['Андрій Мельник', 'ПЗПІ-22-2', 72],
+41  ];
+42
+43  foreach ($students as $student) {
+44      echo studentLabel($student) . ': ' . $student[2] . ' — ' . studentGrade($student)
+45          . (isPassed($student) ? '' : ' (не склав)') . "\n";
+46  }
+
+В.2 Метод 1 (Replace Array with Object): код після рефакторингу
+GitHub репозиторій: https://github.com/NureShchetenskyiOleksandr/ark-pzpi-24-7-shchetenskyi-oleksandr/blob/main/Pract2/pzpi-24-7-shchetenskyi-oleksandr-pract2/example-1-replace-array-with-object-after.php
+ 1  <?php
+ 2
+ 3  declare(strict_types=1);
+ 4
+ 5  namespace App\Refactoring;
+ 6
+ 7  final class Student
+ 8  {
+ 9      private const PASS_SCORE = 60;
+10
+11      public function __construct(
+12          public readonly string $name,
+13          public readonly string $group,
+14          public readonly int $score,
+15      ) {
+16      }
+17
+18      public function label(): string
+19      {
+20          return $this->name . ' (' . $this->group . ')';
+21      }
+22
+23      public function grade(): string
+24      {
+25          return match (true) {
+26              $this->score >= 90 => 'A',
+27              $this->score >= 75 => 'B',
+28              $this->score >= self::PASS_SCORE => 'C',
+29              default => 'F',
+30          };
+31      }
+32
+33      public function isPassed(): bool
+34      {
+35          return $this->score >= self::PASS_SCORE;
+36      }
+37  }
+38
+39  // Демонстрація
+40  $students = [
+41      new Student('Іван Петренко', 'ПЗПІ-22-1', 87),
+42      new Student('Олена Коваль', 'ПЗПІ-22-1', 54),
+43      new Student('Андрій Мельник', 'ПЗПІ-22-2', 72),
+44  ];
+45
+46  foreach ($students as $student) {
+47      echo $student->label() . ': ' . $student->score . ' — ' . $student->grade()
+48          . ($student->isPassed() ? '' : ' (не склав)') . "\n";
+49  }
+
+В.3 Метод 2 (Convert Procedural Design to Objects): код до рефакторингу
+GitHub репозиторій: https://github.com/NureShchetenskyiOleksandr/ark-pzpi-24-7-shchetenskyi-oleksandr/blob/main/Pract2/pzpi-24-7-shchetenskyi-oleksandr-pract2/example-2-convert-procedural-design-to-objects-before.php
+ 1  <?php
+ 2
+ 3  declare(strict_types=1);
+ 4
+ 5  namespace App\Refactoring;
+ 6
+ 7  /**
+ 8   * Процедурний дизайн: дані (масив рядків) окремо, функції окремо.
+ 9   * Кожна функція «знає» внутрішню будову масиву.
+10   */
+11  function addStudent(array &$gradebook, string $name, int $score): void
+12  {
+13      $gradebook[] = ['name' => $name, 'score' => $score];
+14  }
+15
+16  function averageScore(array $gradebook): float
+17  {
+18      $sum = 0;
+19      foreach ($gradebook as $row) {
+20          $sum += $row['score'];
+21      }
+22
+23      return $sum / count($gradebook);
+24  }
+25
+26  function bestStudent(array $gradebook): array
+27  {
+28      $best = $gradebook[0];
+29      foreach ($gradebook as $row) {
+30          if ($row['score'] > $best['score']) {
+31              $best = $row;
+32          }
+33      }
+34
+35      return $best;
+36  }
+37
+38  function printReport(array $gradebook): void
+39  {
+40      echo "Звіт\n";
+41      foreach ($gradebook as $row) {
+42          echo $row['name'] . ': ' . $row['score'] . "\n";
+43      }
+44      echo 'Середній бал: ' . number_format(averageScore($gradebook), 1) . "\n";
+45      echo 'Найкращий: ' . bestStudent($gradebook)['name'] . "\n";
+46  }
+47
+48  // Демонстрація
+49  $gradebook = [];
+50  addStudent($gradebook, 'Іван Петренко', 87);
+51  addStudent($gradebook, 'Олена Коваль', 54);
+52  addStudent($gradebook, 'Андрій Мельник', 72);
+53  printReport($gradebook);
+
+В.4 Метод 2 (Convert Procedural Design to Objects): код після рефакторингу
+GitHub репозиторій: https://github.com/NureShchetenskyiOleksandr/ark-pzpi-24-7-shchetenskyi-oleksandr/blob/main/Pract2/pzpi-24-7-shchetenskyi-oleksandr-pract2/example-2-convert-procedural-design-to-objects-after.php
+ 1  <?php
+ 2
+ 3  declare(strict_types=1);
+ 4
+ 5  namespace App\Refactoring;
+ 6
+ 7  final class Student
+ 8  {
+ 9      public function __construct(
+10          public readonly string $name,
+11          public readonly int $score,
+12      ) {
+13      }
+14  }
+15
+16  final class Gradebook
+17  {
+18      /** @var list<Student> */
+19      private array $students = [];
+20
+21      public function add(Student $student): void
+22      {
+23          $this->students[] = $student;
+24      }
+25
+26      /**
+27       * @return list<Student>
+28       */
+29      public function students(): array
+30      {
+31          return $this->students;
+32      }
+33
+34      public function averageScore(): float
+35      {
+36          $sum = 0;
+37          foreach ($this->students as $student) {
+38              $sum += $student->score;
+39          }
+40
+41          return $sum / count($this->students);
+42      }
+43
+44      public function best(): Student
+45      {
+46          $best = $this->students[0];
+47          foreach ($this->students as $student) {
+48              if ($student->score > $best->score) {
+49                  $best = $student;
+50              }
+51          }
+52
+53          return $best;
+54      }
+55  }
+56
+57  final class GradebookReport
+58  {
+59      public function render(Gradebook $gradebook): string
+60      {
+61          $text = "Звіт\n";
+62          foreach ($gradebook->students() as $student) {
+63              $text .= $student->name . ': ' . $student->score . "\n";
+64          }
+65          $text .= 'Середній бал: ' . number_format($gradebook->averageScore(), 1) . "\n";
+66          $text .= 'Найкращий: ' . $gradebook->best()->name . "\n";
+67
+68          return $text;
+69      }
+70  }
+71
+72  // Демонстрація
+73  $gradebook = new Gradebook();
+74  $gradebook->add(new Student('Іван Петренко', 87));
+75  $gradebook->add(new Student('Олена Коваль', 54));
+76  $gradebook->add(new Student('Андрій Мельник', 72));
+77  echo (new GradebookReport())->render($gradebook);
+
+В.5 Метод 3 (Replace Error Code with Exception): код до рефакторингу
+GitHub репозиторій: https://github.com/NureShchetenskyiOleksandr/ark-pzpi-24-7-shchetenskyi-oleksandr/blob/main/Pract2/pzpi-24-7-shchetenskyi-oleksandr-pract2/example-3-replace-error-code-with-exception-before.php
+ 1  <?php
+ 2
+ 3  declare(strict_types=1);
+ 4
+ 5  namespace App\Refactoring;
+ 6
+ 7  const ERR_OK = 0;
+ 8  const ERR_EMPTY_NAME = 1;
+ 9  const ERR_BAD_SCORE = 2;
+10  const ERR_DUPLICATE = 3;
+11
+12  /**
+13   * Повертає код помилки; ERR_OK означає успіх.
+14   */
+15  function addStudent(array &$students, string $name, int $score): int
+16  {
+17      if ($name === '') {
+18          return ERR_EMPTY_NAME;
+19      }
+20      if ($score < 0 || $score > 100) {
+21          return ERR_BAD_SCORE;
+22      }
+23      if (isset($students[$name])) {
+24          return ERR_DUPLICATE;
+25      }
+26      $students[$name] = $score;
+27
+28      return ERR_OK;
+29  }
+30
+31  // Демонстрація
+32  $students = [];
+33  $data = [['Іван Петренко', 87], ['', 50], ['Олена Коваль', 120], ['Іван Петренко', 90]];
+34
+35  foreach ($data as [$name, $score]) {
+36      $code = addStudent($students, $name, $score);
+37      if ($code === ERR_EMPTY_NAME) {
+38          echo "Помилка: порожнє ім'я\n";
+39      } elseif ($code === ERR_BAD_SCORE) {
+40          echo "Помилка: некоректний бал ({$score})\n";
+41      } elseif ($code === ERR_DUPLICATE) {
+42          echo "Помилка: дублікат ({$name})\n";
+43      } else {
+44          echo "Додано: {$name}\n";
+45      }
+46  }
+
+В.6 Метод 3 (Replace Error Code with Exception): код після рефакторингу
+GitHub репозиторій: https://github.com/NureShchetenskyiOleksandr/ark-pzpi-24-7-shchetenskyi-oleksandr/blob/main/Pract2/pzpi-24-7-shchetenskyi-oleksandr-pract2/example-3-replace-error-code-with-exception-after.php
+ 1  <?php
+ 2
+ 3  declare(strict_types=1);
+ 4
+ 5  namespace App\Refactoring;
+ 6
+ 7  use RuntimeException;
+ 8
+ 9  class StudentRegistrationException extends RuntimeException
+10  {
+11  }
+12
+13  final class EmptyNameException extends StudentRegistrationException
+14  {
+15      public function __construct()
+16      {
+17          parent::__construct("порожнє ім'я");
+18      }
+19  }
+20
+21  final class InvalidScoreException extends StudentRegistrationException
+22  {
+23      public function __construct(public readonly int $score)
+24      {
+25          parent::__construct("некоректний бал ({$score})");
+26      }
+27  }
+28
+29  final class DuplicateStudentException extends StudentRegistrationException
+30  {
+31      public function __construct(public readonly string $name)
+32      {
+33          parent::__construct("дублікат ({$name})");
+34      }
+35  }
+36
+37  final class StudentRegistry
+38  {
+39      /** @var array<string, int> */
+40      private array $scores = [];
+41
+42      /**
+43       * @throws StudentRegistrationException
+44       */
+45      public function add(string $name, int $score): void
+46      {
+47          if ($name === '') {
+48              throw new EmptyNameException();
+49          }
+50          if ($score < 0 || $score > 100) {
+51              throw new InvalidScoreException($score);
+52          }
+53          if (isset($this->scores[$name])) {
+54              throw new DuplicateStudentException($name);
+55          }
+56          $this->scores[$name] = $score;
+57      }
+58  }
+59
+60  // Демонстрація
+61  $registry = new StudentRegistry();
+62  $data = [['Іван Петренко', 87], ['', 50], ['Олена Коваль', 120], ['Іван Петренко', 90]];
+63
+64  foreach ($data as [$name, $score]) {
+65      try {
+66          $registry->add($name, $score);
+67          echo "Додано: {$name}\n";
+68      } catch (StudentRegistrationException $e) {
+69          echo 'Помилка: ' . $e->getMessage() . "\n";
+70      }
+71  }
